@@ -17,31 +17,49 @@ keymap options = {
     {"format", "png"},
     {"treshold", "100"},
     {"gap", "50"},
-    {"min_board_size", "200"}
-};
+    {"min_board_size", "200"}};
 
 int main(int argc, char **argv)
 {
-    mc::properties props;
-    props.load_properties("config.ini");
-
-    for(auto& option: options) {
-        if(props.has_property(option.first)){
-            option.second = props.get_property(option.first);
+    if (fs::exists("config.ini"))
+    {
+        mc::properties props;
+        props.load_properties("config.ini");
+        for (auto &option : options)
+        {
+            if (props.has_property(option.first))
+            {
+                option.second = props.get_property(option.first);
+            }
         }
     }
+
     build_keys(options, argc, argv);
 
     print_options(options);
+
+    fs::path inputDir = options["input"];
+    fs::path outputDir = options["output"];
+
+    if (!fs::exists(inputDir))
+    {
+        std::cout << "[error] input directory " << inputDir << " is missing, exit" << std::endl;
+        return 0;
+    }
+
+    if (!fs::exists(outputDir))
+    {
+        std::cout << "[error] output directory " << outputDir << " is missing, will be create" << std::endl;
+        fs::create_directory(outputDir);
+    }
 
     BoardDetector detector;
 
     // read files from input directory
     std::vector<fs::path> images;
-    std::cout << "format: " << options["format"] << std::endl;
-    std::string ext = "." + options["format"];
+    std::string ext = std::string(".") + options["format"];
 
-    for (const auto &entry : fs::directory_iterator(options["input"]))
+    for (const auto &entry : fs::directory_iterator(inputDir))
     {
         if (entry.path().extension().string() == ext)
         {
@@ -60,7 +78,7 @@ int main(int argc, char **argv)
         auto result = detector.scanPage(image.string());
         for (int i = 0; i < result.size(); ++i)
         {
-            auto path = fs::path(options["output"]);
+            auto path = fs::path(outputDir);
             path.append(image.filename().string() + "_brd_" + std::to_string(i) + "." + options["format"]);
             cv::imwrite(path.string(), result[i]);
         }

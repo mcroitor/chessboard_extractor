@@ -30,3 +30,12 @@
 *.exe
 *.out
 *.app
+
+# build dirs
+build/
+obj/
+
+#skip scans, except jpg
+*.tif
+*.tiff
+*.png

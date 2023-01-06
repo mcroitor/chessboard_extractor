@@ -16,8 +16,14 @@ keymap options = {
     {"output", "."},
     {"format", "png"},
     {"treshold", "100"},
+    {"blur_size", "11"},
+    {"contour_delta", "5"},
     {"gap", "50"},
-    {"min_board_size", "200"}};
+    {"min_board_size", "200"},
+    {"max_board_size", "1000"},
+    {"remove_nested", "1"},
+    {"remove_non_squares", "1"},
+    {"remove_same", "1"}};
 
 int main(int argc, char **argv)
 {

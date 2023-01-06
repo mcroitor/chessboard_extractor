@@ -55,47 +55,7 @@ bool aprox_same_rect(cv::Rect rect1, cv::Rect rect2, size_t delta = 0)
            aprox_equal(rect1.height, rect2.height, gap);
 }
 
-bool has_fields(const cv::Rect &rect, const cv::Mat &part)
-{
-    size_t field_size = rect.width / 8;
-    size_t field_gap = 10; // stoi(options["gap"]) / 8;
-
-    contours_t contours = BoardDetector::getContours(part);
-    // create bounders
-    rects_t rects = BoardDetector::getBoundingRects(contours);
-    auto endIter = std::remove_if(
-        rects.begin(),
-        rects.end(),
-        [field_size, field_gap](const cv::Rect &rect)
-        {
-            // return !aprox_equal(rect.width, field_size, field_gap);
-            return !aprox_square(rect, field_gap) ||
-                   !aprox_equal(rect.width, field_size, field_gap);
-        });
-    rects.erase(endIter, rects.end());
-
-    endIter = std::unique(
-        rects.begin(),
-        rects.end(),
-        [field_gap](const cv::Rect &left, const cv::Rect &right)
-        {
-            return aprox_same_rect(left, right, field_gap);
-        });
-    rects.erase(endIter, rects.end());
-
-    // filter contours: is_square, size is aprox average / 8
-    // if total contours == 64, is ok
-    std::cout << "[debug] + + fields = " << rects.size() << std::endl;
-    std::cout << "[debug] board size = " << rect.width << std::endl;
-    std::cout << "[debug] field size = " << rects[0].width << std::endl;
-    return true; // rects.size() == 64;
-}
-
-bool is_board(const cv::Rect &rect, const cv::Mat &part)
-{
-    int min_board_size = std::stoi(options["min_board_size"]);
-    return aprox_square(rect) && rect.width > min_board_size && has_fields(rect, part);
-}
+// methods
 
 BoardDetector::BoardDetector() {}
 
@@ -103,8 +63,9 @@ contours_t BoardDetector::getContours(const cv::Mat &mat)
 {
     /// Find contours
     cv::Mat mat_prepared;
+    size_t blur_size = std::stoi(options["blur_size"]);
     cv::cvtColor(mat, mat_prepared, cv::COLOR_BGR2GRAY);
-    cv::GaussianBlur(mat_prepared, mat_prepared, cv::Size(5, 5), 0);
+    cv::GaussianBlur(mat_prepared, mat_prepared, cv::Size(blur_size, blur_size), 0);
 
     cv::Mat canny_output;
     cv::Canny(mat_prepared, canny_output, std::stoi(options["treshold"]), std::stoi(options["treshold"]) * 2);
@@ -118,10 +79,12 @@ contours_t BoardDetector::getContours(const cv::Mat &mat)
 rects_t BoardDetector::getBoundingRects(const contours_t &contours)
 {
     rects_t result;
+    size_t contour_delta = std::stoi(options["contour_delta"]);
+
     for (auto contour : contours)
     {
         std::vector<cv::Point> contour_poly;
-        approxPolyDP(contour, contour_poly, 3, true);
+        approxPolyDP(contour, contour_poly, contour_delta, true);
         cv::Rect bounding = cv::boundingRect(contour_poly);
         result.push_back(bounding);
     }
@@ -141,43 +104,44 @@ std::vector<Board> BoardDetector::scanPage(std::string pathToPageImage)
         boards.begin(),
         boards.end(),
         [](cv::Rect rect)
-        { 
-            return rect.width < stoi(options["min_board_size"]); 
-            });
-    boards.erase(endIter, boards.end());
-
-    // remove non-square bounds
-    endIter = std::remove_if(
-        boards.begin(),
-        boards.end(),
-        [](cv::Rect rect)
-        { 
-            return !aprox_square(rect); 
-            });
-    boards.erase(endIter, boards.end());
-
-
-//    // remove non-board
-//    endIter = std::remove_if(
-//        boards.begin(),
-//        boards.end(),
-//        [page](cv::Rect rect)
-//        { return !is_board(rect, page(rect)); });
-//    boards.erase(endIter, boards.end());
-
-    // remove nested
-    boards = BoardDetector::removeNestedRects(boards);
-
-    // remove same boundings
-    endIter = std::unique(
-        boards.begin(),
-        boards.end(),
-        [](const cv::Rect &left, const cv::Rect &right)
         {
-            return aprox_same_rect(left, right);
+            return rect.width < stoi(options["min_board_size"]) ||
+                   rect.width > stoi(options["max_board_size"]);
         });
     boards.erase(endIter, boards.end());
 
+    // remove non-square bounds
+    if (options["remove_non_squares"] != "0")
+    {
+        endIter = std::remove_if(
+            boards.begin(),
+            boards.end(),
+            [](cv::Rect rect)
+            {
+                size_t gap = std::stoi(options["gap"]);
+                return !aprox_square(rect, gap);
+            });
+        boards.erase(endIter, boards.end());
+    }
+
+    // remove nested
+    if (options["remove_nested"] != "0")
+    {
+        boards = BoardDetector::removeNestedRects(boards);
+    }
+
+    // remove same boundings
+    if (options["remove_same"] != "0")
+    {
+        endIter = std::unique(
+            boards.begin(),
+            boards.end(),
+            [](const cv::Rect &left, const cv::Rect &right)
+            {
+                return aprox_same_rect(left, right);
+            });
+        boards.erase(endIter, boards.end());
+    }
 
     // extract diagrams from page
     for (auto board : boards)
@@ -190,10 +154,11 @@ std::vector<Board> BoardDetector::scanPage(std::string pathToPageImage)
 
 bool contains(const cv::Rect &outer, const cv::Rect &inner)
 {
-    return outer.x < inner.x &&
-           outer.y < inner.y &&
-           outer.x + outer.width > inner.x + inner.width &&
-           outer.y + outer.height > inner.y + inner.height;
+    size_t gap = std::stoi(options["gap"]);
+    return outer.x - gap < inner.x &&
+           outer.y - gap < inner.y &&
+           outer.x+ gap + outer.width > inner.x + inner.width &&
+           outer.y + gap + outer.height > inner.y + inner.height;
 }
 
 rects_t BoardDetector::removeNestedRects(const rects_t &rects)

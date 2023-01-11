@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <opencv2/core.hpp>
 #include <opencv2/imgcodecs.hpp>
+#include <opencv2/imgproc.hpp>
 
 #include "board_detector.h"
 #include "property.h"
@@ -12,6 +13,7 @@
 namespace fs = std::filesystem;
 
 keymap options = {
+    {"help", "0"},
     {"input", "."},
     {"output", "."},
     {"format", "png"},
@@ -21,9 +23,12 @@ keymap options = {
     {"gap", "50"},
     {"min_board_size", "200"},
     {"max_board_size", "1000"},
-    {"remove_nested", "1"},
+    {"thickness", "3"},
     {"remove_non_squares", "1"},
-    {"remove_same", "1"}};
+    {"blur_standard", "1"},
+    {"blur_median", "1"},
+    {"blur_gaussian", "1"},
+};
 
 int main(int argc, char **argv)
 {
@@ -43,6 +48,10 @@ int main(int argc, char **argv)
     build_keys(options, argc, argv);
 
     print_options(options);
+    if (options["help"] == "1")
+    {
+        return 0;
+    }
 
     fs::path inputDir = options["input"];
     fs::path outputDir = options["output"];
@@ -81,13 +90,20 @@ int main(int argc, char **argv)
     for (const auto &image : images)
     {
         std::cout << "parse page: " << image << std::endl;
-        auto result = detector.scanPage(image.string());
+        cv::Mat page = cv::imread(image.string());
+
+        auto result = detector.getBoardContours(image.string());
         for (int i = 0; i < result.size(); ++i)
         {
-            auto path = fs::path(outputDir);
-            path.append(image.filename().string() + "_brd_" + std::to_string(i) + "." + options["format"]);
-            cv::imwrite(path.string(), result[i]);
+            cv::rectangle(page, result[i], cv::Scalar(0, 0, 192), std::stoi(options["thickness"]));
+            std::cout << "[info] point = ( "
+                      << result[i].x << ", " << result[i].y
+                      << " ), size = ( " << result[i].width << ", " << result[i].height << " )"
+                      << std::endl;
         }
+        auto path = fs::path(outputDir);
+        path.append(image.filename().string());
+        cv::imwrite(path.string(), page);
         std::cout << "diagrams detected: " << result.size() << std::endl;
     }
 

@@ -15,24 +15,49 @@ extractboards --intput=<input_dir> --output=<output_dir> --format=<page_extensio
 Or you can create `config.ini` file inplace:
 
 ```ini
-blur_size        = 11
-contour_delta    = 5
+# blur size
+blur_size        = 17
+
+blur_standard   = 0
+blur_median     = 1
+blur_gaussian   = 1
+
+contour_delta    = 20
+
+# page file format
 format   = png
-gap      = 20
-input    = .\
-max_board_size   = 800
-min_board_size   = 200
+
+# delta for comparing in pixels
+gap      = 50
+
+#input directory
+input    = .\in\
+
+# max board size
+max_board_size   = 900
+
+# min board size
+min_board_size   = 600
+
+#output directory
 output   = .\out\
-remove_nested    = 1
+
 remove_non_squares       = 1
-remove_same      = 1
+
+# the red contour thickness, drawed over 
+thickness        = 5
+
+# Canny algorithm treshold
 treshold         = 100
 ```
 
+This config specifies limits for board sizes, input and output directories, page file extention for analyzing.
+
+Main motif of file format introducing is possibility to write to the input directory different formats.
+
 ## compile
 
-project use OpenCV library for contours detection. My `Makefile` is strictly linked with my
-PC environment. Feel free to edit it.
+Project use OpenCV library for contours detection. 
 
 If you have `MSYS` with `Mingw64` environment, install OpenCV ( `pacman -Ss opencv` will help you).
 
@@ -51,3 +76,6 @@ white pages white and black lines - black.
 
 As recommendation, you can check initially chess board size and set dimmension using `min_board_size`
 and `max_board_size` options.
+
+You can play with `blur_size`  and `treshold` values for detection improvement. Also you can enable / disable
+bluring altorithms.

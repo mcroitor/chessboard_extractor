@@ -1,65 +1,165 @@
 # chessboard_extractor
 
-ChessBoard extractor is a small tool that helps extract chess diagrams from scanned pages.
+`chessboard_extractor` is a small utility for extracting chess diagrams from scanned pages.
 
-Program can detect any square (from defined size, default 200), it can creates misdetection.
+The detector searches for large, near-square regions that are likely to be chess diagrams. Depending on scan quality and parameter values, false positives and misses are possible.
 
-## usage
+## Usage
 
-Command line usage:
+Extract diagrams:
 
 ```cmd
-extractboards --intput=<input_dir> --output=<output_dir> --format=<page_extension>
+extractboards --input=<input_dir> --output=<output_dir> --format=<page_extension>
 ```
 
-Or you can create `config.ini` file inplace:
+Mark detected diagram bounds on page images:
+
+```cmd
+markboards --input=<input_dir> --output=<output_dir> --format=<page_extension>
+```
+
+You can also configure parameters in `config.ini`:
 
 ```ini
-# blur size
-blur_size        = 17
+# blur kernel size
+blur_size        = 21
 
 blur_standard   = 0
-blur_median     = 1
+blur_median     = 0
 blur_gaussian   = 1
 
-contour_delta    = 20
+# close small edge gaps after Canny
+close_gaps      = 1
+morph_kernel_size = 5
+morph_iterations  = 1
 
-# page file format
+contour_delta    = 50
+
+# input page file extension
 format   = png
 
-# delta for comparing in pixels
+# tolerance for approximate comparisons (pixels)
 gap      = 50
 
-#input directory
+# merge nearby rectangles during optimize step (pixels)
+merge_gap = 8
+
+# input directory
 input    = .\in\
 
 # max board size
-max_board_size   = 900
+max_board_size   = 700
 
 # min board size
-min_board_size   = 600
+min_board_size   = 500
 
-#output directory
+# output directory
 output   = .\out\
 
 remove_non_squares       = 1
 
-# the red contour thickness, drawed over 
+# red rectangle thickness for markboards output
 thickness        = 5
 
-# Canny algorithm treshold
+# Canny threshold (legacy option name kept for compatibility)
 treshold         = 100
 ```
 
-This config specifies limits for board sizes, input and output directories, page file extention for analyzing.
+## Parameters and tuning effects
 
-Main motif of file format introducing is possibility to write to the input directory different formats.
+The table below summarizes expected behavior when increasing or decreasing each parameter.
 
-## compile
+| Parameter | Increase / enable | Decrease / disable |
+|---|---|---|
+| `blur_size` | More smoothing, less noise, but thin edges may disappear | More detail preserved, but more noisy contours |
+| `blur_gaussian` | Soft denoise, usually a good default for scans | More raw/noisy edges |
+| `blur_median` | Better for salt-and-pepper noise and print defects | Less robust to isolated defects |
+| `blur_standard` | Strong averaging; can suppress weak edges | Preserves local details better |
+| `treshold` | Stricter Canny; fewer edges and contours | More sensitive Canny; more edges and false contours |
+| `contour_delta` | Stronger contour simplification, rougher shapes | More accurate shape, but noisier contours |
+| `min_board_size` | Rejects more small candidates; fewer false positives | Keeps smaller candidates; potentially more false positives |
+| `max_board_size` | Allows larger candidates | Rejects larger candidates and merged areas |
+| `remove_non_squares` | Keeps only near-square candidates | Keeps all shapes (useful for diagnostics) |
+| `gap` | More tolerant near-square check | Stricter square check |
+| `close_gaps` | Enables morphological closing; helps broken diagram borders | Keeps raw broken edges; may miss damaged borders |
+| `morph_kernel_size` | Closes larger gaps; may over-merge nearby edges | Gentler closing; less over-merge risk |
+| `morph_iterations` | Stronger repeated closing effect | Weaker closing effect |
+| `merge_gap` | Merges nearby rectangles without direct overlap | Merges only very close/intersecting rectangles |
+| `thickness` (`markboards`) | Thicker red debug rectangles | Thinner debug rectangles |
 
-Project use OpenCV library for contours detection. 
+## Practical presets
 
-If you have `MSYS` with `Mingw64` environment, install OpenCV ( `pacman -Ss opencv` will help you).
+Default preset for low-quality scans with broken diagram borders:
+
+```ini
+blur_size = 21
+blur_gaussian = 1
+blur_median = 0
+blur_standard = 0
+
+close_gaps = 1
+morph_kernel_size = 5
+morph_iterations = 1
+merge_gap = 8
+```
+
+If border breaks are stronger:
+
+- raise `morph_kernel_size` to `7`
+- optionally raise `morph_iterations` to `2`
+- raise `merge_gap` to `10..12`
+
+If false merges appear:
+
+- lower `merge_gap` first
+- then lower `morph_kernel_size` or `morph_iterations`
+
+## Troubleshooting by symptoms
+
+### Too many missed diagrams
+
+- lower `treshold` (for example `100 -> 80`)
+- increase `close_gaps` robustness: `morph_kernel_size 5 -> 7`
+- increase `merge_gap` (`8 -> 10`)
+- temporarily set `remove_non_squares = 0` to inspect candidates
+
+### Too many false positives
+
+- increase `treshold` (`100 -> 120`)
+- increase `min_board_size`
+- decrease `max_board_size`
+- keep `remove_non_squares = 1`
+- reduce `merge_gap` (`10 -> 6`)
+
+### Broken diagram border is not detected
+
+- set `close_gaps = 1`
+- increase `morph_kernel_size` (`5 -> 7`)
+- if needed, increase `morph_iterations` (`1 -> 2`)
+- if candidate is split into multiple parts, increase `merge_gap`
+
+### Neighboring objects are merged into one large box
+
+- lower `merge_gap`
+- lower `morph_kernel_size`
+- lower `morph_iterations`
+
+### Detected box is not square enough
+
+- lower `gap` for stricter square check
+- keep `remove_non_squares = 1`
+
+### Useful debugging workflow
+
+- run `markboards` first to inspect red boxes
+- tune one parameter at a time
+- after any change, compare page-by-page counts
+
+## Build
+
+The project uses OpenCV for contour detection.
+
+If you use MSYS2/Mingw64, install OpenCV (for example, `pacman -Ss opencv`).
 
 ```bash
 git clone git@github.com:mcroitor/chessboard_extractor.git
@@ -67,15 +167,10 @@ cd chessboard_extractor
 make
 ```
 
-## recomendations
+## Recommendations
 
-This tool is not a panacea: sometimes it brokes detection if diagram margins contains gap.
+This tool is not a silver bullet: detection quality can drop on low-quality scans and broken diagram borders.
 
-Good idea will be page preparation, with ScanKromsator, for example. This preparation will make
-white pages white and black lines - black.
+Pre-processing scans (background normalization, contrast improvement, line enhancement) usually improves results.
 
-As recommendation, you can check initially chess board size and set dimmension using `min_board_size`
-and `max_board_size` options.
-
-You can play with `blur_size`  and `treshold` values for detection improvement. Also you can enable / disable
-bluring altorithms.
+It is also recommended to estimate your real board size first and set `min_board_size` / `max_board_size` as tightly as possible for your dataset.

@@ -26,6 +26,10 @@ keymap options = {
     {"blur_standard", "1"},
     {"blur_median", "1"},
     {"blur_gaussian", "1"},
+    {"close_gaps", "1"},
+    {"morph_kernel_size", "5"},
+    {"morph_iterations", "1"},
+    {"merge_gap", "8"},
 };
 
 int main(int argc, char **argv)

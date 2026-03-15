@@ -39,3 +39,9 @@ obj/
 *.tif
 *.tiff
 *.png
+
+# archives
+*.zip
+*.tar.gz
+*.tar.bz2
+*.7z

@@ -184,6 +184,15 @@ rects_t BoardDetector::getBoardContours(std::string pathToPageImage)
         boards = BoardDetector::removeNonSquares(boards);
     }
 
+    // sort boards top-to-bottom, left-to-right (reading order)
+    std::sort(boards.begin(), boards.end(), [](const cv::Rect &a, const cv::Rect &b) {
+        int ay = a.y + a.height / 2;
+        int by = b.y + b.height / 2;
+        if (ay != by)
+            return ay < by;
+        return (a.x + a.width / 2) < (b.x + b.width / 2);
+    });
+
     return boards;
 }
 

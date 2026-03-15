@@ -1,12 +1,15 @@
-PREFIX=clang64/
+PREFIX=mingw32/
 OBJDIR=obj/$(PREFIX)
 BUILDDIR=build/$(PREFIX)
 
-CC=clang++
-LINKER=clang++
+CC=/mingw32/bin/g++
+LINKER=/mingw32/bin/g++
 
-CXXFLAGS = `pkg-config --cflags opencv4`
-LDFLAGS = `pkg-config --libs opencv4`
+CXXFLAGS=-I"/c/msys64/home/mihail.croitor/opencv-4.13.0/build/install/include/"
+LDFLAGS=-L"/c/msys64/home/mihail.croitor/opencv-4.13.0/build/install/x64/mingw/lib/" \
+    -L"/c/msys64/home/mihail.croitor/opencv-4.13.0/build/install/x64/mingw/bin/" \
+	-lopencv_core4130.dll -lopencv_imgproc4130.dll -lopencv_highgui4130.dll \
+	-lopencv_imgcodecs4130.dll
 
 CXXFILES=functions.cpp properties.cpp board_detector.cpp extractboards.cpp markboards.cpp
 OBJFILES=$(OBJDIR)/functions.o \
@@ -21,9 +24,9 @@ APP2=markboards
 all: prepare build
 
 clean:
-	rm -Rf $(OBJDIR)
-	rm -Rf $(BUILDDIR)/$(APP)
-	rm -Rf $(BUILDDIR)/$(APP2)
+	rm -rf $(OBJDIR)
+	rm -rf $(BUILDDIR)/$(APP)
+	rm -rf $(BUILDDIR)/$(APP2)
 
 prepare:
 	@echo "create structure"

@@ -8,7 +8,7 @@
  */
 std::string ltrim(std::string str)
 {
-    while (str.front() == ' ' || str.front() == '\t')
+    while (!str.empty() && (str.front() == ' ' || str.front() == '\t'))
     {
         str.erase(str.begin());
     }
@@ -22,7 +22,7 @@ std::string ltrim(std::string str)
  */
 std::string rtrim(std::string str)
 {
-    while (str.back() == ' ' || str.back() == '\t')
+    while (!str.empty() && (str.back() == ' ' || str.back() == '\t'))
     {
         str.pop_back();
     }

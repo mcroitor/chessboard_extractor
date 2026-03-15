@@ -24,9 +24,9 @@ APP2=markboards
 all: prepare build
 
 clean:
-	rm -R $(OBJDIR)
-	rm -R $(BUILDDIR)/$(APP)
-	rm -R $(BUILDDIR)/$(APP2)
+	rm -rf $(OBJDIR)
+	rm -rf $(BUILDDIR)/$(APP)
+	rm -rf $(BUILDDIR)/$(APP2)
 
 prepare:
 	@echo "create structure"
